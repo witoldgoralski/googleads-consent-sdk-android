@@ -28,6 +28,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
+import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.view.ViewGroup;
@@ -39,6 +40,7 @@ import com.google.gson.Gson;
 import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.Locale;
 
 /**
  * A Google rendered form for collecting consent from a user.
@@ -54,6 +56,9 @@ public class ConsentForm {
     private final Dialog dialog;
     private final WebView webView;
     private LoadState loadState;
+
+    private final static String[] countryTab = new String[] {"cn", "de", "es", "fr", "it", "jp",
+            "kr", "nl", "pl", "pt", "ru"};  //most translations thanks to codenia
 
     private enum LoadState {
         NOT_READY,
@@ -270,7 +275,30 @@ public class ConsentForm {
         }
 
         this.loadState = LoadState.LOADING;
-        this.webView.loadUrl("file:///android_asset/consentform.html");
+        this.webView.loadUrl(getI18nUrl());
+    }
+
+    private String getI18nUrl() {
+        String code = Locale.getDefault().getCountry().toLowerCase();
+        TelephonyManager telephonyManager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+        String codeSIM = "";
+        if (telephonyManager != null) {
+            codeSIM = telephonyManager.getSimCountryIso().toLowerCase();
+        }
+
+        String foundCodeSIM = "";
+        for(String country : countryTab) {
+            if (code.contains(country))
+                return String.format(Locale.getDefault(), "file:///android_asset/consentform.%s.html", country);
+            if (codeSIM.contains(country))
+                foundCodeSIM = country;
+        }
+
+        //last resort
+        if (!foundCodeSIM.isEmpty())
+            return String.format(Locale.getDefault(), "file:///android_asset/consentform.%s.html", foundCodeSIM);
+        //default - english
+        return "file:///android_asset/consentform.html";
     }
 
     private void handleLoadComplete(String status) {
